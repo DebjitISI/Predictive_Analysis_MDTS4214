@@ -1,0 +1,121 @@
+---
+  title: "Predictive Analytics - Regression Problem Set 2"
+author: "Debjit Khaskel(438)"
+date: "`r Sys.Date()`"
+output: html_document
+---
+  
+  ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1: Population Regression vs. Least Squares Regression
+
+```{r problem1}
+library(ggplot2)
+set.seed(123)
+n <- 50
+x <- runif(n, 5, 10)
+
+y_pop <- 2 + 3 * x  # Population regression line
+
+epsilon <- rnorm(n, mean = 0, sd = sqrt(42))
+y <- 2 + 3 * x + epsilon  # Sample data with noise
+
+model <- lm(y ~ x)
+
+plot_data <- data.frame(x, y, y_pop)
+
+ggplot(plot_data, aes(x, y)) +
+  geom_point(color = 'blue') +
+  geom_abline(intercept = 2, slope = 3, color = 'red', linetype = 'dashed') +
+  geom_smooth(method = 'lm', color = 'black') +
+  labs(title = "Population vs. Least Squares Regression",
+       x = "X",
+       y = "Y")
+```
+
+### Repeat 5 times
+```{r problem1_repeat}
+for(i in 1:5) {
+  epsilon <- rnorm(n, mean = 0, sd = sqrt(42))
+  y <- 2 + 3 * x + epsilon
+  model <- lm(y ~ x)
+  print(summary(model))
+}
+```
+
+## Problem 2: RSS Minimization
+
+```{r problem2}
+set.seed(123)
+x <- runif(n, 5, 10)
+x_centered <- scale(x, center = TRUE, scale = FALSE)
+epsilon <- rnorm(n, 0, 1)
+y <- 2 + 3 * x + epsilon
+
+model <- lm(y ~ x)
+coef(model)
+
+b0_grid <- seq(0, 4, length.out = 100)
+b1_grid <- seq(2, 4, length.out = 100)
+rss_values <- matrix(NA, nrow = length(b0_grid), ncol = length(b1_grid))
+
+for(i in 1:length(b0_grid)) {
+  for(j in 1:length(b1_grid)) {
+    rss_values[i, j] <- sum((y - (b0_grid[i] + b1_grid[j] * x))^2)
+  }
+}
+which.min(rss_values)
+```
+
+## Problem 3: Unbiasedness of Least Squares Estimators
+
+```{r problem3}
+set.seed(123)
+R <- 100
+beta0_estimates <- numeric(R)
+beta1_estimates <- numeric(R)
+
+for(i in 1:R) {
+  x <- runif(n, 0, 1)
+  epsilon <- rnorm(n, 0, 1)
+  y <- 2 + 3 * x + epsilon
+  model <- lm(y ~ x)
+  beta0_estimates[i] <- coef(model)[1]
+  beta1_estimates[i] <- coef(model)[2]
+}
+
+mean_beta0 <- mean(beta0_estimates)
+mean_beta1 <- mean(beta1_estimates)
+list(mean_beta0 = mean_beta0, mean_beta1 = mean_beta1)
+```
+
+## Problem 4: Multiple Linear Regression
+
+```{r problem4, message=FALSE}
+library(ISLR)
+library(stargazer)
+data(Carseats)
+
+quantitative_vars <- sapply(Carseats, is.numeric)
+carseats_quant <- Carseats[, quantitative_vars]
+
+models <- lapply(names(carseats_quant)[-1], function(var) lm(Sales ~ carseats_quant[[var]], data = Carseats))
+full_model <- lm(Sales ~ ., data = carseats_quant)
+
+stargazer(models, full_model, type = "text")
+```
+
+## Confidence and Prediction Intervals
+
+```{r problem4_intervals}
+avg_values <- colMeans(carseats_quant[-1])
+predicted_avg <- predict(full_model, newdata = as.data.frame(t(avg_values)), interval = "confidence")
+
+store1_values <- carseats_quant[1, -1]
+predicted_store1 <- predict(full_model, newdata = as.data.frame(store1_values), interval = "prediction")
+
+list(confidence_interval = predicted_avg, prediction_interval = predicted_store1)
+```
+
