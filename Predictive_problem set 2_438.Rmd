@@ -1,13 +1,10 @@
 ---
-  title: "Predictive Analytics - Regression Problem Set 2"
+title: "Predictive Analytics - Regression Problem Set 2"
 author: "Debjit Khaskel(438)"
 date: "`r Sys.Date()`"
-output: html_document
+output: word_document
 ---
   
-  ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 ## Problem 1: Population Regression vs. Least Squares Regression
 
@@ -98,24 +95,72 @@ library(ISLR)
 library(stargazer)
 data(Carseats)
 
-quantitative_vars <- sapply(Carseats, is.numeric)
-carseats_quant <- Carseats[, quantitative_vars]
+#quantitative_vars <- sapply(Carseats, is.numeric)
+#carseats_quant = Carseats[, quantitative_vars]
+carseats_quant=Carseats[,-c(7,9,10,11)];View(carseats_quant)
 
 models <- lapply(names(carseats_quant)[-1], function(var) lm(Sales ~ carseats_quant[[var]], data = Carseats))
 full_model <- lm(Sales ~ ., data = carseats_quant)
 
-stargazer(models, full_model, type = "text")
+stargazer(models, full_model, type = "text",title = "Regressions of Computer Sales on different predictors separately and togather", dep.var.labels = "sales", out = "Regression.txt")
 ```
 
 ## Confidence and Prediction Intervals
 
 ```{r problem4_intervals}
-avg_values <- colMeans(carseats_quant[-1])
+avg_values <- colMeans(carseats_quant[-1]);avg_values
 predicted_avg <- predict(full_model, newdata = as.data.frame(t(avg_values)), interval = "confidence")
 
 store1_values <- carseats_quant[1, -1]
 predicted_store1 <- predict(full_model, newdata = as.data.frame(store1_values), interval = "prediction")
 
 list(confidence_interval = predicted_avg, prediction_interval = predicted_store1)
+```
+### Q11
+```{r}
+set.seed(123)
+n=1000
+x1=rnorm(n,0,2)
+x2=rpois(n,1.5)
+e=rnorm(n)
+#setup 1
+y=-2 +1.4*x1 -2.6*x2 + e
+
+data= data.frame(y,x1,x2)
+train=data[1:800,]
+test=data[-c(1:800),]
+
+lmfit = lm(y~x1+x2,train)
+yhat= predict(lmfit,newdata=test)
+test_mse_lmfit= mean((yhat-test$y)^2)
+test_mse_lmfit
+
+
+library(kknn)
+?kknn
+kfit = kknn(y ~ x1+x2,train,test,k=1)
+kfit
+yhat_kfit=predict(kfit,newdata=test)
+test_mse_kfit = mean((yhat_kfit - test$y)^2)
+test_mse_kfit
+
+#setup 2
+
+y_new=-2 +1.4*x1 -2.6*x2 + 2.9*x1^2 + 3.1*exp(x2) -1.5*x1*x2^2 + e
+data_new= data.frame(y_new,x1,x2)
+train_new=data_new[1:800,]
+test_new=data_new[-c(1:800),]
+
+lmfit_new = lm(y_new ~ x1+x2,train_new)
+yhat_new = predict(lmfit_new,newdata=test_new)
+test_mse_new = mean((yhat_new-test_new$y)^2)
+test_mse_new
+
+
+kfit_new = kknn(y_new ~ x1+x2,train_new,test_new,k=15)
+kfit_new
+yhat_kfit_new=predict(kfit_new,newdata=test_new)
+test_mse_kfit_new = mean((yhat_kfit_new - test_new$y)^2)
+test_mse_kfit_new
 ```
 
