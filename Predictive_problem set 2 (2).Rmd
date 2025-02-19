@@ -337,7 +337,29 @@ kfit_new= kknn(y_new ~x1+x2,train_data_new,test_data_new, k=15)
 yhat_kfit_new= predict(kfit_new, newdata= test_data_new)
 test_mse_kfit_new= mean((yhat_kfit_new - test_data_new$y_new)^2);test_mse_kfit_new
 ```
+## Problem 11: KNN vs Least Squares
+```{r}
+set.seed(123)
+n <- 1000
+x1 <- rnorm(n, 0, 22)
+x2 <- rpois(n, 1.5)
+y <- -2 + 1.4*x1 - 2.6*x2 + rnorm(n, 0, 1)
 
+train <- 1:800
+test <- 801:1000
+lm_model <- lm(y ~ x1 + x2, data=data.frame(x1, x2, y))
+test_mse_lm <- mean((predict(lm_model, data.frame(x1=x1[test], x2=x2[test])) - y[test])^2)
+
+library(FNN)
+k_values <- c(1, 2, 5, 9, 15)
+knn_mse <- sapply(k_values, function(k) {
+  y_pred <- knn.reg(train=data.frame(x1=x1[train], x2=x2[train]), test=data.frame(x1=x1[test], x2=x2[test]), y=y[train], k=k)$pred
+  mean((y_pred - y[test])^2)
+})
+
+cat("Test MSE LM:", test_mse_lm, "KNN MSEs:", knn_mse, "\n")
+
+```
 
 
 
