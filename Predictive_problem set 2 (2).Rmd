@@ -1,0 +1,343 @@
+---
+title: "Problem set 2 (Predictive Ananlysis)"
+author: "Pradip(413)"
+date: "`r Sys.Date()`"
+output: word_document
+---
+####  1. Problem to demonstrate that the population regression line is fixed, but least square regression line varies
+
+```{r}
+set.seed(123)
+
+#Step 1.
+X=5:10
+Y= 2+(3*X)
+plot(X,Y,type = "l", main = "Graph of Regression Line", ylab = "Y=2+3x",col= "blue")
+
+#Step 2.
+xi= runif(50,5,10);xi
+ei= rnorm(50,0,4);ei
+yi= 2+3*xi+ei
+#Step 3.
+lin_reg= lm(yi~xi)
+line= abline(lin_reg, col= "Red")
+legend("topleft", legend = c("Population","Sample"), lty = 1, col = c("blue","red"))
+
+#Step 4.
+for(j in 1:5)
+{
+  xi= runif(50,5,10)
+  ei= rnorm(50,0,4)
+  yi= 2+3*xi+ei
+  abline(lm(yi~xi),col = j)
+}
+
+```
+
+#### 2. Problem to demonstrate that βˆ0 and βˆ infact minimises RSS
+```{r}
+set.seed(123)
+xi= runif(50,5,10)
+mean_centred_xi= xi- mean(xi)
+ei= rnorm(50,0,1)
+yi= 2+(3*mean_centred_xi)+ei
+model= lm(yi~mean_centred_xi);model
+
+beta_0_hat <- coef(model)[1];beta_0_hat
+beta_hat <- coef(model)[2];beta_hat
+
+
+beta0_vals <- c(seq(0,4,.1),2.056189) # Grid for β0
+beta_vals <- c(seq(1,5,.1),3.076349)  # Grid for β
+
+# Function to compute the RSS
+compute_RSS <- function(beta0, beta, x, y) {
+  sum((y - beta0 - beta * x)^2)
+}
+
+RSS_matrix = matrix(0, nrow = length(beta0_vals), ncol = length(beta_vals))
+
+for (i in 1:length(beta0_vals)) {
+  for (j in 1:length(beta_vals)) {
+    RSS_matrix[i,j]= compute_RSS(beta0_vals[i],beta_vals[j],mean_centred_xi,yi)
+  }
+}
+RSS_matrix
+
+which(RSS_matrix==min(RSS_matrix),arr.ind = TRUE)
+
+```
+
+#### 3. Problem to demonstrate that least square estimators are unbiased
+```{r warning=FALSE}
+set.seed(123)
+xi= runif(50,0,1)
+ei= rnorm(50,0,1)
+yi= 2+(3*xi)+ei
+model= lm(yi~xi)
+beta0= coef(model)[1]
+beta= coef(model)[2]
+
+for(i in 1:100){
+  xi= runif(50,0,1)
+ei= rnorm(50,0,1)
+yi= 2+(3*xi)+ei
+model[i]= lm(yi~xi)
+beta0[i]= coef(model)[1]
+beta[i]= coef(model)[2]
+}
+mean(beta0)
+mean(beta)
+```
+
+#### 4. Problem to demonstrate the utility of multiple linear regression
+
+```{r}
+library(ISLR)
+library(stargazer)
+attach(Carseats)
+carseats_quant <- Carseats[,-c(7,9,10,11)]
+View(carseats_quant)
+
+models <- lapply(names(carseats_quant)[-1], function(var) lm(Sales ~ carseats_quant[[var]], data = carseats_quant))
+
+full_model <- lm(Sales ~ ., data = carseats_quant)
+
+stargazer(models, full_model, type = "html",title= "Regression of sales of carseats on different predictors", out = "multiple.html")
+
+# the model here is---
+#Sales= b0+b1*CompPrice + b2*Income + b3*Advertising + b4*Population + b5*Price+ b6*Age
+
+#observed F= 76.986
+# Reject H0 at 1% level of significance. i.e. at least one predictor is usefl in predicting the response
+#Adj R_square= 0.533 i.e the fit is moderate
+
+
+avg_values <- colMeans(carseats_quant[-1])
+predicted_avg <- predict(full_model, newdata = as.data.frame(t(avg_values)), interval = "confidence")
+
+store1_values <- carseats_quant[1, -1]
+predicted_store1 <- predict(full_model, newdata = as.data.frame(store1_values), interval = "prediction")
+
+list(confidence_interval = predicted_avg, prediction_interval = predicted_store1)
+
+```
+
+#### 5. Problem to demonstrate the role of qualitative (nominal) predictors in addition to quantitative predictors in multiple linear regression
+
+```{r}
+attach(Credit)
+
+lm1= lm(Balance~Gender,data = Credit)
+lm2= lm(Balance~Gender+Ethnicity,data = Credit)
+lm3= lm(Balance~Gender+Ethnicity+Income,data = Credit)
+
+stargazer(lm1,lm2,lm3,covarite.levels=c("female","Asian","Caucasian"),type= "html", title = "Regression of Balance of credit card on differenct predictors", out= "question5.html")
+
+AIC(lm1)
+AIC(lm2)
+AIC(lm3)
+
+BIC(lm1)
+BIC(lm2)
+BIC(lm3)
+#comparing AIC,BIC and adjusted R squared model 3 is preffered
+```
+
+#### 6. Problem to demonstrate the role of qualitative (ordinal) predictors in addition to quantitative predictors in multiple linear regression
+```{r}
+library(ggplot2)
+attach(diamonds)
+View(diamonds)
+mylist= list(diamonds$cut,diamonds$color,diamonds$clarity)
+# Here Price is our response variable
+lm_cut= lm(price~as.factor(cut))
+stargazer(lm_cut,type = "html",out= "Regression on cut.html")
+
+premium_cut = diamonds[diamonds$cut == "Premium", ]
+ideal_cut = diamonds[diamonds$cut == "Ideal", ]
+t.test(premium_cut$price, ideal_cut$price)
+
+# The regression model is given by
+# Price= 4062.236 - 362.725*Fair -225.580*Good -699.497*V.Good -280.356*Premium
+#e) expected price of a diamond of ideal cut is 4062.236 since Ideal is the base line so we put other predictors as zero and hence we get the expected price for ideal cut
+
+lm_table= lm(price~as.factor(cut)+table)
+stargazer(lm_table,type = "html",out= "Regression on table.html")
+#Here the model is given as:
+
+model_summary = summary(lm_table);
+table_p_value = model_summary$coefficients["table", "Pr(>|t|)"]
+table_p_value
+# Here we reject the null since the p-value is very small. Hence the predicor "table" has significance. Also from the stargazer table we can notice that the table predictor is significant.
+Exp_price= -6340.256+mean(diamonds$table)*179.105 -14.244;Exp_price
+#Hence the expected price will be 3936.369
+```
+
+#### 7. Problem to demonstrate the impact of ignoring interaction term in multiple linear regression
+```{r}
+set.seed(123)  
+run_simulation = function(n, beta0, beta1, beta2, beta3) {
+x1 <- rnorm(n)  
+x2 <- rbinom(n, 1, 0.3)
+epsilon <- rnorm(n)  
+y <- beta0 + beta1 * x1 + beta2 * x2 + beta3 * (x1 * x2) + epsilon
+# Step 3: Fit models
+model_full <- lm(y ~ x1 + x2 + x1:x2)  
+model_naive <- lm(y ~ x1 + x2)        
+
+mse_full <- mean((y - predict(model_full))^2)
+mse_naive <- mean((y - predict(model_naive))^2)
+return(c(mse_full, mse_naive))  
+}
+n <- 100  
+R <- 1000  
+mse_full_results <- numeric(R)
+mse_naive_results <- numeric(R)
+
+# Simulation for the first configuration
+beta1 <- 1.2
+beta2 <- 2.3
+beta3_1 <- 0.001
+beta3_2 <- 3.1
+beta0 <- -2.5
+
+for (i in 1:R) {
+  mse_results <- run_simulation(n, beta0, beta1, beta2, beta3_1)
+  mse_full_results[i] <- mse_results[1]
+  mse_naive_results[i] <- mse_results[2]
+}
+avg_mse_full_1 <- mean(mse_full_results)
+avg_mse_naive_1 <- mean(mse_naive_results)
+
+#
+mse_full_results <- numeric(R)
+mse_naive_results <- numeric(R)
+
+for (i in 1:R) {
+  mse_results <- run_simulation(n, beta0, beta1, beta2, beta3_2)
+  mse_full_results[i] <- mse_results[1]
+  mse_naive_results[i] <- mse_results[2]
+}
+
+avg_mse_full_2 <- mean(mse_full_results)
+avg_mse_naive_2 <- mean(mse_naive_results)
+
+
+cat("Average MSE for full model (beta3 = 0.001):", avg_mse_full_1, "\n")
+cat("Average MSE for naive model (beta3 = 0.001):", avg_mse_naive_1, "\n")
+cat("Average MSE for full model (beta3 = 3.1):", avg_mse_full_2, "\n")
+cat("Average MSE for naive model (beta3 = 3.1):", avg_mse_naive_2, "\n")
+
+```
+
+#### 8. Problem to demonstrate the utility of nonlinear regression over linear regression
+```{r}
+library(MASS)
+attach(fgl)
+View(fgl)
+Data_temp=data.frame(fgl[type== "Veh",]) 
+Data=Data_temp[,-10]
+View(Data)
+lm_RI= lm(RI~.,data = Data)
+Summary=summary(lm_RI);Summary
+
+lm_fe= lm(RI~Fe, data = Data)
+quadratic_lm= lm(RI~Fe+I(Fe^2), data = Data)
+cubic_lm= lm(RI~Fe+I(Fe^2)+I(Fe^3), data = Data)
+stargazer(lm_fe,quadratic_lm,cubic_lm,type = "html", out = "Comparison of Regression.html")
+#Hence the quadratic regression is best here.
+```
+
+#### 9. Problem to demonstrate multicollinearity
+```{r}
+library(ISLR)
+library(stargazer)
+attach(Credit)
+plot(Age, Limit,type = "p", main= "Age versus Limit")
+plot(Rating, Limit,type = "p", main= "Rating versus Limit")
+
+# There is a collinearity between Rating and Limit.
+Lin_reg1= lm(Balance~ Age+Limit)
+Lin_reg2= lm(Balance~ Age+Limit+Rating)
+Lin_reg3= lm(Balance~ Limit+Rating)
+
+stargazer(Lin_reg1,Lin_reg2,Lin_reg3,type = "html", title = "Comparison of Regression", out = "Regression.html")
+
+#Difference: When we are considering Limit as predictor along with Age or both Age and rating the predictor is significant but when we are considering limit with rating then limit turnes out to be insignificant.
+
+vif(Lin_reg1)
+vif(Lin_reg2)
+vif(Lin_reg3)
+
+# From the variance inflation factor we can say that "Limit" and "Rating" has multicollinearity.
+```
+
+#### 10. Problem to demonstrate the detection of outlier, leverage and influential points
+```{r}
+influence.measures(full_model)
+```
+
+```{r}
+# Compute hat values (Leverage)
+leverage_values <- hatvalues(full_model)
+
+# Compute Studentized residuals (Outliers)
+student_resid <- rstudent(full_model);student_resid
+
+# Compute Cook’s distance (Influential points)
+cooks_d <- cooks.distance(full_model)
+
+# Identify high leverage points
+high_leverage <- which(leverage_values > (2 * (length(coef(full_model)) / nrow(Carseats))))
+
+# Identify influential points (Cook’s distance > 1 is usually considered influential)
+influential_points <- which(cooks_d > 1)
+
+# Print results
+cat("High Leverage Points:", high_leverage, "\n")
+cat("Influential Points:", influential_points, "\n")
+
+```
+
+#### 11. Problem to demonstrate the utility of K near-est neighbour regression over least squares regression
+```{r}
+set.seed(123)
+n=1000
+x1= rnorm(n,0,2)
+x2= rpois(n,1.5)
+epsilon= rnorm(n,0,1)
+y= -2 + 1.4*x1 - 2.6*x2 + epsilon
+Data= data.frame(y,x1,x2)
+train_data= Data[1:800,]
+test_data= Data[-c(1:800),]
+
+lmfit= lm(y~x1+x2,train_data)
+yhat= predict(lmfit,newdata = test_data)
+test_MSE_lmfit= mean((yhat-test_data$y)^2);test_MSE_lmfit
+
+library(kknn)
+
+kfit= kknn(y ~x1+x2,train_data,test_data, k=1)
+yhat_kfit= predict(kfit, newdata= test_data)
+test_mse_kfit= mean((yhat_kfit - test_data$y)^2);test_mse_kfit
+
+#setup 2
+
+y_new= -2 + 1.4*x1 - 2.6*x2 + 2.9*(x1^2) + 3.1*exp(x2) - 1.5*x1*(x2^2)+ epsilon
+Data_new= data.frame(y_new, x1, x2)
+train_data_new= Data_new[1:800,]
+test_data_new= Data_new[-c(1:800),]
+
+lmfit_new= lm(y_new ~x1+x2,train_data_new)
+yhat_new= predict(lmfit_new, newdata = test_data_new)
+test_MSE_new= mean((yhat_new- test_data_new$y_new)^2);test_MSE_new
+
+kfit_new= kknn(y_new ~x1+x2,train_data_new,test_data_new, k=15)
+yhat_kfit_new= predict(kfit_new, newdata= test_data_new)
+test_mse_kfit_new= mean((yhat_kfit_new - test_data_new$y_new)^2);test_mse_kfit_new
+```
+
+
+
+
